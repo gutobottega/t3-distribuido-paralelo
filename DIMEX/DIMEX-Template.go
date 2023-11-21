@@ -167,9 +167,9 @@ func (module *DIMEX_Module) handleUponReqExit() {
 		if module.waiting[i] {
 			module.sendToLink(module.addresses[i], "respOK,"+strconv.Itoa(module.id)+","+strconv.Itoa(module.reqTs), "   ")
 		}
-		module.st = noMX
-		module.waiting[module.id] = false
+		module.waiting[i] = false
 	}
+	module.st = noMX
 }
 
 // ------------------------------------------------------------------------------------
@@ -190,8 +190,8 @@ func (module *DIMEX_Module) handleUponDeliverRespOk(msgOutro PP2PLink.PP2PLink_I
 	module.nbrResps++
 	if module.nbrResps == len(module.addresses)-1 {
 		module.Ind <- dmxResp{}
+		module.st = inMX
 	}
-	module.st = inMX
 }
 
 func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink_Ind_Message) {
@@ -207,10 +207,18 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 		        				então  postergados := postergados + [p, r ]
 		     					lts.ts := max(lts.ts, rts.ts)
 	*/
-	if module.st == noMX || (module.st == wantMX && before(module.id, module.reqTs, msgOutro.From, msgOutro.MessageTs)) {
-		module.sendToLink(module.addresses[msgOutro.From], "respOK,"+strconv.Itoa(module.id)+","+strconv.Itoa(module.reqTs), "   ")
-	} else if module.st == inMX || (module.st == wantMX && !before(module.id, module.reqTs, msgOutro.From, msgOutro.MessageTs)) {
-		module.waiting[msgOutro.From] = true
+
+	message := strings.Split(msgOutro.Message, ",")
+	fmt.Println(msgOutro.Message)
+	ts, _ := strconv.Atoi(message[2])
+	id, _ := strconv.Atoi(message[1])
+	if module.st == noMX || (module.st == wantMX && before(id, ts, module.id, module.reqTs)) {
+		module.sendToLink(module.addresses[id], "respOK,"+strconv.Itoa(module.id)+","+strconv.Itoa(module.reqTs), "   ")
+	} else if module.st == inMX || (module.st == wantMX && !before(id, ts, module.id, module.reqTs)) {
+		module.waiting[id] = true
+	}
+	if ts > module.lcl {
+		module.lcl = ts
 	}
 }
 
